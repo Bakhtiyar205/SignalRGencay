@@ -7,29 +7,94 @@
     <script>
         $(document).ready(() => {
             const connection = new signalR.HubConnectionBuilder()
-                .withUrl("http://localhost:5252/myhub").build();
+                //Connection with url
+                .withUrl("http://localhost:5252/myhub")
+                //Reconnect if connection is off
+                //  time interval for connection 0, 2s, 4s, 10s  by default but you can override it on method
+                //  as a parametr with array sample: .withAutomaticReconnect([1000,1000,2000,3000,5000,10000])
+                .withAutomaticReconnect()
+                .build();
+            
 
-            connection.start();
+            //Before connection start it tries to connect every 2s
+            async function start() {
+                try{
+                    await connection.start();
+                } catch(error){
+                    setTimeout(()=> start(),2000);
+                }
+            }
+
+            start();
+
+            const status = $("#status");
+
+            connection.onreconnecting(error => {
+                debugger
+                status.css("background-color", "blue");
+                status.css("color","white");
+                status.html("Connection is creating");
+                status.fadeIn(2000, ()=>{
+                    setTimeout(() => {
+                        status.fadeOut(2000);
+                    }, 2000);
+                })
+            });
+
+            connection.onreconnected(connectionId => {
+                status.css("background-color", "green");
+                status.css("color","white");
+                status.html("Connection is created");
+                status.fadeIn(2000, ()=>{
+                    setTimeout(() => {
+                        status.fadeOut(2000);
+                    }, 2000);
+                })
+            });
+
+            connection.onclose(connectionId => {
+                debugger
+                status.css("background-color", "red");
+                status.css("color","white");
+                status.html("Connection is not created");
+                status.fadeIn(2000, ()=>{
+                    setTimeout(() => {
+                        status.fadeOut(2000);
+                    }, 2000);   
+                })
+            });
+
             $("#btnSend").click(() => {
 
                 let message = $("#txtMessage").val();
-                connection.invoke("SendMessageAsync", message).catch(error => console.log(`Catched error while sending message Error Detail:${error}`));
+                //Method Inovaktion
+                connection.invoke("SendMessageAsync", message)
+                //Error 
+                .catch(error => console.log(`Catched error while sending message Error Detail:${error}`));
             })
 
            
             connection.on("receiveMessage", message => {
-                debugger
-                $("div").append(message + "<br>");
+                $(".messages").append(message + "<br>");
             })
         })
     </script>
 </head>
 
 <body>
+    <div id="status"></div>
     <input type="text" id="txtMessage">
     <button id="btnSend">Send</button>
 
-    <div></div>
+    <div class="messages"></div>
+    
 </body>
 
 </html>
+
+<!-- Extra -->
+<!-- 
+1)onreconnecting : it triggered before reconnection process
+2)onreconnected : it triggered while connection is created again
+3)onclose : it triggered if connection can not created 
+-->
