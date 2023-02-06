@@ -27,6 +27,19 @@
 
             start();
 
+            function animationStatus(){
+                status.fadeIn(2000, ()=>{
+                    setTimeout(() => {
+                        status.fadeOut(2000);
+                    }, 2000);
+                })
+            }
+
+            function cssStatus(cssAttribute, cssProperty){
+                debugger
+                status.css(cssAttribute,cssProperty);
+            }
+
             const status = $("#status");
 
             connection.onreconnecting(error => {
@@ -34,22 +47,14 @@
                 status.css("background-color", "blue");
                 status.css("color","white");
                 status.html("Connection is creating");
-                status.fadeIn(2000, ()=>{
-                    setTimeout(() => {
-                        status.fadeOut(2000);
-                    }, 2000);
-                })
+               animationStatus();
             });
 
             connection.onreconnected(connectionId => {
                 status.css("background-color", "green");
                 status.css("color","white");
                 status.html("Connection is created");
-                status.fadeIn(2000, ()=>{
-                    setTimeout(() => {
-                        status.fadeOut(2000);
-                    }, 2000);
-                })
+                animationStatus();
             });
 
             connection.onclose(connectionId => {
@@ -57,12 +62,10 @@
                 status.css("background-color", "red");
                 status.css("color","white");
                 status.html("Connection is not created");
-                status.fadeIn(2000, ()=>{
-                    setTimeout(() => {
-                        status.fadeOut(2000);
-                    }, 2000);   
-                })
+                animationStatus();
             });
+
+            
 
             $("#btnSend").click(() => {
 
@@ -77,6 +80,32 @@
             connection.on("receiveMessage", message => {
                 $(".messages").append(message + "<br>");
             })
+
+            connection.on("userJoined", connectionId =>{
+                debugger
+                status.html(`${connectionId} connected`);
+                animationStatus();
+                cssStatus("background-color", "green");
+                cssStatus("color", "white");
+            })
+
+            connection.on("userLeaved", connectionId =>{
+                status.html(`${connectionId} disconnected`);
+                animationStatus();
+                debugger
+                cssStatus("background-color", "red");
+                cssStatus("color", "white");
+            })
+
+            connection.on("clients", clientsData => {
+                debugger
+                let text = "";
+                $.each(clientsData,(index, item) => {
+                    text += `<li>${item}</li>`
+                });
+                $("#clients").html(text);
+            })
+
         })
     </script>
 </head>
@@ -87,6 +116,10 @@
     <button id="btnSend">Send</button>
 
     <div class="messages"></div>
+
+    <ul id="clients">
+
+    </ul>
     
 </body>
 
