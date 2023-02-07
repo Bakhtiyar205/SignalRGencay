@@ -8,111 +8,140 @@
         $(document).ready(() => {
             const connection = new signalR.HubConnectionBuilder()
                 //Connection with url
-                .withUrl("http://localhost:5252/myhub")
+                .withUrl("http://localhost:5252/messageHub")
                 //Reconnect if connection is off
                 //  time interval for connection 0, 2s, 4s, 10s  by default but you can override it on method
                 //  as a parametr with array sample: .withAutomaticReconnect([1000,1000,2000,3000,5000,10000])
                 .withAutomaticReconnect()
                 .build();
-            
+
 
             //Before connection start it tries to connect every 2s
             async function start() {
-                try{
+                try {
                     await connection.start();
-                } catch(error){
-                    setTimeout(()=> start(),2000);
+                } catch (error) {
+                    setTimeout(() => start(), 2000);
                 }
             }
 
             start();
 
-            function animationStatus(){
-                status.fadeIn(2000, ()=>{
+            function animationStatus() {
+                status.fadeIn(2000, () => {
                     setTimeout(() => {
                         status.fadeOut(2000);
                     }, 2000);
                 })
             }
 
-            function cssStatus(cssAttribute, cssProperty){
-                debugger
-                status.css(cssAttribute,cssProperty);
+            function cssStatus(cssAttribute, cssProperty) {
+                status.css(cssAttribute, cssProperty);
             }
 
             const status = $("#status");
 
             connection.onreconnecting(error => {
-                debugger
                 status.css("background-color", "blue");
-                status.css("color","white");
+                status.css("color", "white");
                 status.html("Connection is creating");
-               animationStatus();
+                animationStatus();
             });
 
             connection.onreconnected(connectionId => {
                 status.css("background-color", "green");
-                status.css("color","white");
+                status.css("color", "white");
                 status.html("Connection is created");
                 animationStatus();
             });
 
             connection.onclose(connectionId => {
-                debugger
                 status.css("background-color", "red");
-                status.css("color","white");
+                status.css("color", "white");
                 status.html("Connection is not created");
                 animationStatus();
             });
 
-            
-
+            //#region Send to request to the hub invoke SendMessageAsync method
             $("#btnSend").click(() => {
 
+                debugger
                 let message = $("#txtMessage").val();
-                //Method Inovaktion
-                connection.invoke("SendMessageAsync", message)
+                let connectionIds = $("#txtArea").val().split(",")
+                //////Method Invocation
+                ////Without Group
+                // connection.invoke("SendMessageAsync", message, connectionIds)
+                //////With Group
+                connection.invoke("SendMessageAsync", message, $("input[name=group]:checked",connectionIds).val())
                 //Error 
                 .catch(error => console.log(`Catched error while sending message Error Detail:${error}`));
             })
-
-           
-            connection.on("receiveMessage", message => {
-                $(".messages").append(message + "<br>");
+            //#endregion
+            //#region Message Appender to body
+            // connection.on("receiveMessage", message => {
+            //     $(".messages").append(message + "<br>");
+            // })
+            //#endregion
+            //#region Show who joined the server to all
+            // connection.on("userJoined", connectionId =>{
+            //     status.html(`${connectionId} connected`);
+            //     animationStatus();
+            //     cssStatus("background-color", "green");
+            //     cssStatus("color", "white");
+            // })
+            //#endregion
+            //#region Show who leaved the server to all
+            // connection.on("userLeaved", connectionId =>{
+            //     status.html(`${connectionId} disconnected`);
+            //     animationStatus();
+            //     cssStatus("background-color", "red");
+            //     cssStatus("color", "white");
+            // })
+            //#endregion
+            //#region Show list of clients
+            // connection.on("clients", clientsData => {
+            //     let text = "";
+            //     $.each(clientsData,(index, item) => {
+            //         text += `<li>${item}</li>`
+            //     });
+            //     $("#clients").html(text);
+            // })
+            //#endregion
+            //#region Show id only to user
+            let _connectionId = "";
+            connection.on("getConnectionId", connectionId => {
+                const connectionIdBody = $("#connectionId");
+                connectionIdBody.html(`The id is ${connectionId}`)
+                _connectionId = connectionId;
             })
 
-            connection.on("userJoined", connectionId =>{
+            connection.on("receiveMessage",message => {
                 debugger
-                status.html(`${connectionId} connected`);
-                animationStatus();
-                cssStatus("background-color", "green");
-                cssStatus("color", "white");
+                const messages = $(".messages");
+                messages.html(message);
             })
-
-            connection.on("userLeaved", connectionId =>{
-                status.html(`${connectionId} disconnected`);
-                animationStatus();
+            //#endregion
+            //#region Subscribe to group
+            $("#btnSubscribeGroup").click(()=>{
                 debugger
-                cssStatus("background-color", "red");
-                cssStatus("color", "white");
+              let groupName = $("input[name=group]:checked").val();
+              connection.invoke("addGroup", _connectionId, groupName).catch(error => console.log(`Catched error while sending message Error Detail:${error}`));
             })
 
-            connection.on("clients", clientsData => {
-                debugger
-                let text = "";
-                $.each(clientsData,(index, item) => {
-                    text += `<li>${item}</li>`
-                });
-                $("#clients").html(text);
-            })
-
+            //#endregion
         })
     </script>
 </head>
 
 <body>
+    <div style="background-color: green; color: #fff;" id="connectionId"></div>
+    <input type="radio" name="group" id="A" value="A">A
+    <input type="radio" name="group" id="B" value="B">B
+    <input type="radio" name="group" id="C" value="C">C
+    <button id="btnSubscribeGroup">Subscribe to the group</button>
     <div id="status"></div>
     <input type="text" id="txtMessage">
+    <textarea id="txtArea" cols="30" rows="10"></textarea>
     <button id="btnSend">Send</button>
 
     <div class="messages"></div>
@@ -120,7 +149,7 @@
     <ul id="clients">
 
     </ul>
-    
+
 </body>
 
 </html>
